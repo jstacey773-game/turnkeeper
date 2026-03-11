@@ -1,1 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>TurnKeeper</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap');
+  :root {
+    --bg:#0a0a0f;--surface:#13131a;--border:#2a2a3a;--accent:#00e5ff;
+    --accent2:#ff4081;--accent3:#ffd740;--text:#e8e8f0;--muted:#5a5a7a;
+    --glow:0 0 30px rgba(0,229,255,0.4),0 0 60px rgba(0,229,255,0.15);
+    --pizza-glow:0 0 30px rgba(255,215,64,0.5),0 0 60px rgba(255,215,64,0.2);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,229,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+  #app{position:relative;z-index:1}
+  .screen{display:none;min-height:100vh;padding:20px}
+  .screen.active{display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .logo{font-family:'Bebas Neue',cursive;font-size:clamp(3rem,12vw,5rem);letter-spacing:4px;color:var(--accent);text-shadow:0 0 40px rgba(0,229,255,0.5);margin-bottom:8px;text-align:center}
+  .tagline{color:var(--muted);font-size:.7rem;letter-spacing:3px;text-transform:uppercase;margin-bottom:50px;text-align:center}
+  .btn{display:block;width:100%;max-width:280px;padding:16px 24px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:'Space Mono',monospace;font-size:.85rem;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all .2s;text-align:center;margin:6px auto}
+  .btn:active{border-color:var(--accent);color:var(--accent)}
+  .btn-primary{background:var(--accent);color:#000;border-color:var(--accent);font-weight:700}
+  .btn-primary:active{background:#00b8cc;color:#000}
+  .btn-danger{border-color:var(--accent2);color:var(--accent2)}
+  .btn-sm{padding:10px 16px;font-size:.7rem}
+  .section-title{font-family:'Bebas Neue',cursive;font-size:2rem;letter-spacing:3px;color:var(--text);margin-bottom:4px;text-align:center}
+  .section-sub{color:var(--muted);font-size:.65rem;letter-spacing:2px;text-align:center;margin-bottom:20px}
 
+  /* MODE TOGGLE */
+  .mode-toggle{width:100%;max-width:340px;margin:0 auto 16px}
+  .mode-toggle label{font-size:.65rem;letter-spacing:2px;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:8px}
+  .mode-options{display:flex;gap:0}
+  .mode-opt{flex:1;padding:12px 8px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-family:'Space Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .2s;text-align:center;line-height:1.4}
+  .mode-opt:first-child{border-right:none}
+  .mode-opt.selected{border-color:var(--accent);color:var(--accent);background:rgba(0,229,255,.05)}
+
+  /* TIME + PLAYERS */
+  .time-control{width:100%;max-width:340px;margin:0 auto 16px}
+  .time-control label{font-size:.65rem;letter-spacing:2px;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:8px}
+  .time-options{display:flex;gap:6px;flex-wrap:wrap}
+  .time-option{padding:8px 14px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-family:'Space Mono',monospace;font-size:.75rem;cursor:pointer;transition:all .2s}
+  .time-option.selected{border-color:var(--accent);color:var(--accent);background:rgba(0,229,255,.05)}
+  .player-list{width:100%;max-width:340px;margin:0 auto 8px}
+  .player-row{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border);background:var(--surface);margin-bottom:6px}
+  .pdot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+  .player-row input{flex:1;background:none;border:none;color:var(--text);font-family:'Space Mono',monospace;font-size:.85rem;outline:none}
+  .rbtn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;padding:4px;transition:color .2s}
+  .rbtn:active{color:var(--accent2)}
+
+  /* LOBBY */
+  .lobby-code{font-family:'Bebas Neue',cursive;font-size:4rem;letter-spacing:8px;color:var(--accent);text-shadow:var(--glow);text-align:center;margin:16px 0}
+  .lobby-players{width:100%;max-width:300px;margin:0 auto 16px}
+  .lplayer{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border);background:var(--surface);margin-bottom:5px;font-size:.85rem}
+
+  /* GAME SCREEN — fixed layout so footer never scrolls off */
+  #gameScreen{padding:0;justify-content:flex-start;height:100vh;height:100dvh}
+  .game-header{width:100%;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+  .rcode{font-size:.65rem;letter-spacing:2px;color:var(--muted)}
+  .rcode span{color:var(--accent);font-size:.9rem}
+  .mode-badge{font-size:.6rem;letter-spacing:1px;color:var(--muted);border:1px solid var(--border);padding:3px 8px}
+
+  /* Players list scrolls, footer stays pinned */
+  .players-container{width:100%;flex:1;overflow-y:auto;padding:10px 12px;min-height:0}
+
+  .pcard{border:1px solid var(--border);background:var(--surface);padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;transition:all .3s;position:relative;overflow:hidden;cursor:default}
+  .pcard.active{border-color:var(--accent);box-shadow:var(--glow);background:rgba(0,229,255,.04)}
+  .pcard.eliminated{opacity:.35;border-style:dashed}
+  /* In "select next" mode, non-active non-eliminated cards are tappable */
+  .pcard.selectable{cursor:pointer;border-color:var(--border)}
+  .pcard.selectable:active{border-color:var(--accent);background:rgba(0,229,255,.08)}
+  .abar{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent);opacity:0;transition:opacity .3s}
+  .pcard.active .abar{opacity:1}
+  .pcolor{width:14px;height:14px;border-radius:50%;flex-shrink:0}
+  .pinfo{flex:1;min-width:0}
+  .pname{font-size:.9rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pstatus{font-size:.6rem;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-top:2px}
+  .pcard.active .pstatus{color:var(--accent)}
+  .pcard.selectable .pstatus{color:var(--accent2)}
+  .ptime{font-family:'Bebas Neue',cursive;font-size:2rem;letter-spacing:2px;color:var(--text);min-width:80px;text-align:right}
+  .pcard.active .ptime{color:var(--accent)}
+  .ptime.warn{color:#ffb300!important}
+  .ptime.crit{color:var(--accent2)!important;animation:blink .6s infinite alternate}
+  @keyframes blink{from{opacity:1}to{opacity:.4}}
+  .ebtn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;padding:6px;transition:color .2s;flex-shrink:0}
+  .ebtn:active{color:var(--accent2)}
+
+  /* FOOTER */
+  .game-footer{width:100%;flex-shrink:0;border-top:1px solid var(--border);background:var(--surface)}
+  .footer-top{display:flex;gap:0;border-bottom:1px solid var(--border)}
+
+  /* PIZZA BUTTON */
+  .pizza-btn{flex:0 0 72px;padding:14px 0;background:none;border:none;border-right:1px solid var(--border);cursor:pointer;font-size:1.6rem;transition:all .2s;display:flex;align-items:center;justify-content:center}
+  .pizza-btn:active{background:rgba(255,215,64,.1)}
+  .pizza-btn.paused{background:rgba(255,215,64,.12);box-shadow:var(--pizza-glow);animation:pizzapulse 1.5s infinite alternate}
+  @keyframes pizzapulse{from{opacity:1}to{opacity:.6}}
+
+  .footer-right{flex:1;display:flex;flex-direction:column}
+  .turn-label{text-align:center;font-size:.6rem;letter-spacing:2px;color:var(--muted);text-transform:uppercase;padding:8px 12px 0}
+  .turn-label span{color:var(--accent)}
+  .end-btn{width:100%;padding:16px;font-family:'Bebas Neue',cursive;font-size:1.3rem;letter-spacing:3px;cursor:pointer;background:var(--accent);color:#000;border:none;transition:all .15s}
+  .end-btn:disabled{background:var(--border);color:var(--muted);cursor:not-allowed}
+  .end-btn:not(:disabled):active{transform:scale(.98);opacity:.9}
+
+  /* PAUSED OVERLAY */
+  .paused-banner{display:none;width:100%;background:rgba(255,215,64,.1);border-top:1px solid var(--accent3);padding:10px;text-align:center;font-size:.7rem;letter-spacing:2px;color:var(--accent3)}
+  .paused-banner.show{display:block}
+
+  /* SELECT NEXT HINT */
+  .select-hint{display:none;width:100%;padding:8px 12px;text-align:center;font-size:.65rem;letter-spacing:1px;color:var(--accent2)}
+  .select-hint.show{display:block}
+
+  /* WINNER */
+  .winner-trophy{font-size:4rem;margin:10px 0}
+  .winner-name{font-family:'Bebas Neue',cursive;font-size:3.5rem;letter-spacing:4px;color:var(--accent);text-shadow:var(--glow);margin:12px 0}
+
+  /* TOAST */
+  #toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--surface);border:1px solid var(--accent);color:var(--accent);padding:12px 24px;font-size:.75rem;letter-spacing:1px;transition:transform .3s;z-index:999;white-space:nowrap}
+  #toast.show{transform:translateX(-50%) translateY(0)}
+  .err{color:var(--accent2);font-size:.75rem;text-align:center;margin:8px 0;letter-spacing:1px;min-height:20px}
+  .infobox{width:100%;max-width:320px;margin:10px auto;padding:12px 16px;border:1px solid var(--border);background:var(--surface);font-size:.68rem;color:var(--muted);line-height:1.8;text-align:center}
+  .infobox strong{color:var(--text)}
+  fieldset{border:none;padding:0;margin:0;width:100%;max-width:320px}
+  .ifield{margin-bottom:12px}
+  .ifield label{font-size:.65rem;letter-spacing:2px;color:var(--muted);display:block;margin-bottom:6px;text-transform:uppercase}
+  .ifield input{width:100%;padding:14px 16px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:1rem;outline:none}
+  .ifield input:focus{border-color:var(--accent)}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HOME -->
+  <div id="homeScreen" class="screen active">
+    <div class="logo">TURNKEEPER</div>
+    <div class="tagline">Multiplayer Turn Clock</div>
+    <button class="btn btn-primary" onclick="goCreate()">Create Game</button>
+    <button class="btn" onclick="showScreen('joinScreen')">Join Game</button>
+  </div>
+
+  <!-- CREATE -->
+  <div id="createScreen" class="screen">
+    <div class="section-title">New Game</div>
+    <div class="section-sub">Set up players &amp; time</div>
+
+    <!-- MODE SELECT -->
+    <div class="mode-toggle">
+      <label>Turn Order</label>
+      <div class="mode-options">
+        <div class="mode-opt selected" id="modeSeq" onclick="selMode('sequence')">
+          ↻ In Sequence<br><span style="font-size:.6rem;color:var(--muted)">Fixed order, auto-advance</span>
+        </div>
+        <div class="mode-opt" id="modePick" onclick="selMode('pick')">
+          👆 Choose Next<br><span style="font-size:.6rem;color:var(--muted)">Tap who goes next</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="time-control">
+      <label>Time per player</label>
+      <div class="time-options">
+        <div class="time-option" data-m="1" onclick="selTime(1)">1 min</div>
+        <div class="time-option" data-m="3" onclick="selTime(3)">3 min</div>
+        <div class="time-option selected" data-m="5" onclick="selTime(5)">5 min</div>
+        <div class="time-option" data-m="10" onclick="selTime(10)">10 min</div>
+        <div class="time-option" data-m="15" onclick="selTime(15)">15 min</div>
+        <div class="time-option" data-m="30" onclick="selTime(30)">30 min</div>
+      </div>
+    </div>
+
+    <div class="player-list" id="playerList"></div>
+    <button class="btn btn-sm" style="max-width:200px;margin-bottom:16px" onclick="addPlayer()">+ Add Player</button>
+    <button class="btn btn-primary" onclick="createGame()">Create Game</button>
+    <button class="btn" onclick="showScreen('homeScreen')">Back</button>
+    <div class="err" id="createErr"></div>
+  </div>
+
+  <!-- LOBBY -->
+  <div id="lobbyScreen" class="screen">
+    <div class="section-title">Ready to Play</div>
+    <div class="section-sub">Share this code or pass the phone</div>
+    <div class="lobby-code" id="lobbyCode">----</div>
+    <div class="lobby-players" id="lobbyPlayers"></div>
+    <div class="infobox">
+      <strong>One device?</strong> Pass it around &amp; tap End Turn.<br>
+      <strong>Multiple phones?</strong> Each player opens this page → Join Game → enters code + name.
+    </div>
+    <div style="height:12px"></div>
+    <button class="btn btn-primary" onclick="startGame()">Start Game</button>
+    <button class="btn btn-danger btn-sm" onclick="showScreen('homeScreen')">Cancel</button>
+  </div>
+
+  <!-- JOIN -->
+  <div id="joinScreen" class="screen">
+    <div class="section-title">Join Game</div>
+    <div class="section-sub">Enter code &amp; your name</div>
+    <fieldset>
+      <div class="ifield">
+        <label>Room Code</label>
+        <input id="joinCode" type="text" placeholder="XXXX" maxlength="4"
+          style="letter-spacing:6px;font-size:1.3rem"
+          oninput="this.value=this.value.toUpperCase()">
+      </div>
+      <div class="ifield">
+        <label>Your Name</label>
+        <input id="joinName" type="text" placeholder="Enter your name">
+      </div>
+    </fieldset>
+    <div class="err" id="joinErr"></div>
+    <button class="btn btn-primary" onclick="joinGame()">Join</button>
+    <button class="btn" onclick="showScreen('homeScreen')">Back</button>
+  </div>
+
+  <!-- GAME -->
+  <div id="gameScreen" class="screen">
+    <div class="game-header">
+      <div class="rcode">ROOM <span id="hCode"></span></div>
+      <div id="modeBadge" class="mode-badge">SEQUENCE</div>
+    </div>
+    <div class="players-container" id="playersContainer"></div>
+    <div class="paused-banner" id="pausedBanner">⏸ PIZZA BREAK — GAME PAUSED</div>
+    <div class="game-footer">
+      <div class="footer-top">
+        <button class="pizza-btn" id="pizzaBtn" onclick="togglePause()" title="Pizza break — pause game">🍕</button>
+        <div class="footer-right">
+          <div class="turn-label">Current turn: <span id="curName">—</span></div>
+          <button class="end-btn" id="endBtn" onclick="endTurn()">END TURN</button>
+        </div>
+      </div>
+      <div class="select-hint" id="selectHint">👆 Tap a player to give them the floor</div>
+    </div>
+  </div>
+
+  <!-- WINNER -->
+  <div id="winnerScreen" class="screen" style="text-align:center">
+    <div class="section-title">Game Over</div>
+    <div class="winner-trophy">🏆</div>
+    <div style="color:var(--muted);font-size:.7rem;letter-spacing:2px;margin-bottom:4px">WINNER</div>
+    <div class="winner-name" id="winName"></div>
+    <div style="color:var(--muted);font-size:.75rem;margin-bottom:30px" id="winTime"></div>
+    <button class="btn btn-primary" onclick="goCreate()">Play Again</button>
+    <button class="btn" onclick="showScreen('homeScreen')">Home</button>
+  </div>
+
+</div>
+<div id="toast"></div>
+
+<script>
+const COLORS=['#00e5ff','#ff4081','#76ff03','#ffd740','#e040fb','#ff6e40','#40c4ff','#69f0ae'];
+let G={selTime:5,selMode:'sequence',setupPlayers:[],game:null,tick:null,lastTick:null,paused:false,isHost:true,myPlayerId:null};
+
+// ---- UTILS ----
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function toast(msg,ms=2500){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),ms);
+}
+function fmt(ms){
+  if(ms<=0)return'0:00';
+  const s=Math.floor(ms/1000);
+  return Math.floor(s/60)+':'+(s%60).toString().padStart(2,'0');
+}
+
+// ---- SETUP ----
+function goCreate(){
+  G.setupPlayers=[{name:'Player 1'},{name:'Player 2'}];
+  G.selTime=5; G.selMode='sequence'; G.paused=false;
+  document.querySelectorAll('.time-option').forEach(el=>el.classList.toggle('selected',el.dataset.m==='5'));
+  document.getElementById('modeSeq').classList.add('selected');
+  document.getElementById('modePick').classList.remove('selected');
+  renderSetup();
+  showScreen('createScreen');
+}
+
+function selMode(m){
+  G.selMode=m;
+  document.getElementById('modeSeq').classList.toggle('selected',m==='sequence');
+  document.getElementById('modePick').classList.toggle('selected',m==='pick');
+}
+
+function selTime(m){
+  G.selTime=m;
+  document.querySelectorAll('.time-option').forEach(el=>el.classList.toggle('selected',+el.dataset.m===m));
+}
+
+function addPlayer(){
+  if(G.setupPlayers.length>=8){toast('Max 8 players');return;}
+  G.setupPlayers.push({name:'Player '+(G.setupPlayers.length+1)});
+  renderSetup();
+}
+function removePlayer(i){G.setupPlayers.splice(i,1);renderSetup();}
+
+function renderSetup(){
+  const el=document.getElementById('playerList');
+  el.innerHTML='';
+  G.setupPlayers.forEach((p,i)=>{
+    const d=document.createElement('div');d.className='player-row';
+    d.innerHTML=`<div class="pdot" style="background:${COLORS[i%COLORS.length]}"></div>
+      <input type="text" value="${p.name}" placeholder="Player ${i+1}"
+        oninput="G.setupPlayers[${i}].name=this.value||'Player ${i+1}'">
+      ${G.setupPlayers.length>2?`<button class="rbtn" onclick="removePlayer(${i})">✕</button>`:''}`;
+    el.appendChild(d);
+  });
+}
+
+// ---- CREATE ----
+function createGame(){
+  document.getElementById('createErr').textContent='';
+  const inputs=document.querySelectorAll('#playerList input');
+  const names=Array.from(inputs).map((inp,i)=>inp.value.trim()||'Player '+(i+1));
+  if(names.length<2){document.getElementById('createErr').textContent='Need at least 2 players';return;}
+  const ms=G.selTime*60*1000;
+  const code=Math.random().toString(36).slice(2,6).toUpperCase();
+  G.game={
+    code, status:'lobby', currentIdx:0, mode:G.selMode,
+    players:names.map((name,i)=>({id:'p'+i,name,color:COLORS[i%COLORS.length],timeLeft:ms,eliminated:false}))
+  };
+  G.isHost=true;
+  document.getElementById('lobbyCode').textContent=code;
+  renderLobby();
+  showScreen('lobbyScreen');
+}
+
+function renderLobby(){
+  const c=document.getElementById('lobbyPlayers');c.innerHTML='';
+  G.game.players.forEach(p=>{
+    const d=document.createElement('div');d.className='lplayer';
+    d.innerHTML=`<div class="pdot" style="background:${p.color}"></div>${p.name}`;
+    c.appendChild(d);
+  });
+}
+
+function joinGame(){
+  const code=document.getElementById('joinCode').value.trim().toUpperCase();
+  const name=document.getElementById('joinName').value.trim();
+  const err=document.getElementById('joinErr');
+  if(!code||code.length!==4){err.textContent='Enter a 4-letter code';return;}
+  if(!name){err.textContent='Enter your name';return;}
+  err.textContent='Multi-device sync requires Firebase. For now, pass the phone around!';
+}
+
+// ---- START ----
+function startGame(){
+  if(!G.game)return;
+  G.game.status='playing'; G.game.currentIdx=0; G.paused=false;
+  renderGame(); startTick(); showScreen('gameScreen');
+}
+
+// ---- RENDER GAME ----
+function renderGame(){
+  const g=G.game;
+  document.getElementById('hCode').textContent=g.code;
+  document.getElementById('modeBadge').textContent=g.mode==='pick'?'CHOOSE NEXT':'SEQUENCE';
+
+  const cur=g.players[g.currentIdx];
+  document.getElementById('curName').textContent=cur?cur.name:'—';
+
+  // End button — disabled when paused or in pick mode (waiting for tap)
+  const endBtn=document.getElementById('endBtn');
+  endBtn.disabled=G.paused;
+  endBtn.textContent=g.mode==='pick'?'END TURN — THEN TAP NEXT':'END TURN';
+
+  // Select hint (only in pick mode, not paused)
+  const hint=document.getElementById('selectHint');
+  hint.classList.toggle('show', g.mode==='pick' && !G.paused);
+
+  const c=document.getElementById('playersContainer');c.innerHTML='';
+  g.players.forEach((p,i)=>{
+    const isActive=i===g.currentIdx&&!p.eliminated;
+    const ms=Math.max(0,p.timeLeft);
+    const tc=ms<30000?'crit':ms<60000?'warn':'';
+
+    // In pick mode: after turn ended (waiting=true), non-active non-eliminated cards are tappable
+    const selectable = g.mode==='pick' && g.waiting && !isActive && !p.eliminated && !G.paused;
+
+    const d=document.createElement('div');
+    d.className='pcard'+(isActive?' active':'')+(p.eliminated?' eliminated':'')+(selectable?' selectable':'');
+    d.id='card-'+p.id;
+    if(selectable) d.onclick=()=>pickNext(p.id);
+
+    d.innerHTML=`<div class="abar"></div>
+      <div class="pcolor" style="background:${p.color}"></div>
+      <div class="pinfo">
+        <div class="pname">${p.eliminated?'✕ ':''}${p.name}</div>
+        <div class="pstatus">${p.eliminated?'eliminated':isActive?'ACTIVE TURN':selectable?'TAP TO SELECT':'waiting'}</div>
+      </div>
+      <div class="ptime ${tc}" id="t-${p.id}">${fmt(ms)}</div>
+      ${!p.eliminated?`<button class="ebtn" onclick="event.stopPropagation();elimPlayer('${p.id}')">✕</button>`:''}`;
+    c.appendChild(d);
+  });
+}
+
+// ---- TICK ----
+function startTick(){
+  if(G.tick)clearInterval(G.tick);
+  G.lastTick=Date.now();
+  G.tick=setInterval(()=>{
+    const g=G.game;
+    if(!g||g.status!=='playing'||G.paused||g.waiting)return;
+    const now=Date.now(),delta=now-G.lastTick;G.lastTick=now;
+    const p=g.players[g.currentIdx];if(!p||p.eliminated)return;
+    p.timeLeft=Math.max(0,p.timeLeft-delta);
+    const el=document.getElementById('t-'+p.id);
+    if(el){
+      el.textContent=fmt(p.timeLeft);
+      el.className='ptime'+(p.timeLeft<30000?' crit':p.timeLeft<60000?' warn':'');
+    }
+    if(p.timeLeft<=0){
+      toast('⏰ '+p.name+' ran out of time!');
+      if(g.mode==='sequence') advanceTurn();
+      else { g.waiting=true; renderGame(); } // in pick mode, force them to pick next
+    }
+  },100);
+}
+
+function stopTick(){if(G.tick){clearInterval(G.tick);G.tick=null;}}
+
+// ---- PIZZA / PAUSE ----
+function togglePause(){
+  G.paused=!G.paused;
+  if(G.paused) G.lastTick=null; // freeze tick delta
+  else G.lastTick=Date.now();   // resume cleanly
+  const btn=document.getElementById('pizzaBtn');
+  const banner=document.getElementById('pausedBanner');
+  btn.classList.toggle('paused',G.paused);
+  banner.classList.toggle('show',G.paused);
+  document.getElementById('endBtn').disabled=G.paused;
+  toast(G.paused?'🍕 Paused — enjoy the pizza!':'▶ Game resumed!');
+}
+
+// ---- END TURN ----
+function endTurn(){
+  if(G.paused)return;
+  const g=G.game;if(!g)return;
+  if(g.mode==='sequence'){
+    advanceTurn();
+  } else {
+    // Pick mode: stop current clock, show selectable players
+    g.waiting=true;
+    G.lastTick=null; // freeze tick
+    renderGame();
+    toast('👆 Tap who goes next');
+  }
+}
+
+function pickNext(playerId){
+  const g=G.game;if(!g||!g.waiting)return;
+  const idx=g.players.findIndex(p=>p.id===playerId);
+  if(idx===-1||g.players[idx].eliminated)return;
+  g.currentIdx=idx;
+  g.waiting=false;
+  G.lastTick=Date.now();
+  renderGame();
+}
+
+function advanceTurn(){
+  const g=G.game;if(!g)return;
+  const next=findNext(g.players,g.currentIdx);
+  if(next===-1){endGame();return;}
+  g.currentIdx=next; g.waiting=false;
+  G.lastTick=Date.now();
+  renderGame();
+}
+
+function findNext(players,cur){
+  for(let i=1;i<=players.length;i++){
+    const idx=(cur+i)%players.length;
+    if(!players[idx].eliminated&&players[idx].timeLeft>0)return idx;
+  }
+  return -1;
+}
+
+// ---- ELIMINATE ----
+function elimPlayer(id){
+  const g=G.game;
+  const idx=g.players.findIndex(p=>p.id===id);if(idx===-1)return;
+  const active=g.players.filter(p=>!p.eliminated);
+  if(active.length<=2){toast('Need at least 2 active players');return;}
+  const name=g.players[idx].name;
+  g.players[idx].eliminated=true;
+  toast(name+' removed from game');
+  if(g.currentIdx===idx){
+    const next=findNext(g.players,idx);
+    if(next===-1){endGame();return;}
+    g.currentIdx=next; g.waiting=false;
+  }
+  G.lastTick=Date.now();
+  renderGame();
+}
+
+// ---- END GAME ----
+function endGame(){
+  stopTick();
+  const g=G.game; g.status='finished';
+  const active=g.players.filter(p=>!p.eliminated&&p.timeLeft>0);
+  const winner=active.length>0?active.reduce((b,p)=>p.timeLeft>b.timeLeft?p:b):g.players.find(p=>!p.eliminated);
+  document.getElementById('winName').textContent=winner?winner.name:'—';
+  document.getElementById('winTime').textContent=winner?fmt(winner.timeLeft)+' remaining':'';
+  showScreen('winnerScreen');
+}
+
+// Init
+renderSetup();
+showScreen('homeScreen');
+</script>
+
+<!-- ============================================================
+  FIREBASE MULTI-DEVICE SYNC — OPTIONAL
+  Replace the placeholder firebaseConfig below with yours from
+  the Firebase console (Project Settings > Your Apps > Config).
+  The app works in single-device mode without this.
+============================================================ -->
+<script type="module">
+// ▼▼▼ PASTE YOUR FIREBASE CONFIG HERE — replace these 9 lines ▼▼▼
+const firebaseConfig = {
+  apiKey: "AIzaSyA3e59DKl2PGtWZh4XaFWdTI51jadolI7o",
+  authDomain: "turnkeeper-1d907.firebaseapp.com",
+  databaseURL: "https://turnkeeper-1d907-default-rtdb.firebaseio.com",
+  projectId: "turnkeeper-1d907",
+  storageBucket: "turnkeeper-1d907.firebasestorage.app",
+  messagingSenderId: "50636821960",
+  appId: "1:50636821960:web:7a1c2860fbb80fad589cfd",
+  measurementId: "G-WPRT8WL446"
+};
+// ▲▲▲ END OF PASTE ZONE ▲▲▲
+
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref, set, get, update, onValue }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+if (firebaseConfig.apiKey.startsWith('PASTE_')) {
+  console.log('Firebase not configured — single-device mode.');
+} else {
+  try {
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    let gameRef = null;
+    let unsubscribe = null;
+
+    window.createGame = async function() {
+      document.getElementById('createErr').textContent = '';
+      const inputs = document.querySelectorAll('#playerList input');
+      const names = Array.from(inputs).map((inp,i) => inp.value.trim()||'Player '+(i+1));
+      if (names.length < 2) { document.getElementById('createErr').textContent = 'Need at least 2 players'; return; }
+      const ms = G.selTime * 60 * 1000;
+      const code = Math.random().toString(36).slice(2,6).toUpperCase();
+      const players = names.map((name,i) => ({id:'p'+i,name,color:COLORS[i%8],timeLeft:ms,eliminated:false}));
+      const gameData = {code,status:'lobby',currentIdx:0,mode:G.selMode,waiting:false,players,created:Date.now()};
+      gameRef = ref(db,'games/'+code);
+      try {
+        await set(gameRef, gameData);
+        G.game = gameData; G.isHost = true;
+        subscribeGame(code);
+        document.getElementById('lobbyCode').textContent = code;
+        renderLobby(); showScreen('lobbyScreen');
+      } catch(e) { document.getElementById('createErr').textContent = 'Firebase error — check your config'; }
+    };
+
+    window.joinGame = async function() {
+      const code = document.getElementById('joinCode').value.trim().toUpperCase();
+      const name = document.getElementById('joinName').value.trim();
+      const err = document.getElementById('joinErr');
+      if (!code||code.length!==4) { err.textContent='Enter a 4-letter code'; return; }
+      if (!name) { err.textContent='Enter your name'; return; }
+      err.textContent='Connecting...';
+      try {
+        const snap = await get(ref(db,'games/'+code));
+        if (!snap.exists()) { err.textContent='Room not found'; return; }
+        const data = snap.val();
+        if (data.status==='finished') { err.textContent='That game has ended'; return; }
+        const player = data.players.find(p=>p.name.toLowerCase()===name.toLowerCase());
+        if (!player) { err.textContent=`No player named "${name}" in this game`; return; }
+        err.textContent='';
+        G.game=data; G.myPlayerId=player.id; G.isHost=false;
+        gameRef=ref(db,'games/'+code);
+        subscribeGame(code); showScreen('gameScreen'); renderGame();
+      } catch(e) { err.textContent='Connection failed'; }
+    };
+
+    window.startGame = async function() {
+      if (!G.game||!G.isHost) return;
+      try { await update(gameRef,{status:'playing',currentIdx:0,waiting:false}); } catch(e) { toast('Error'); }
+    };
+
+    window.endTurn = async function() {
+      if (G.paused) return;
+      const g=G.game; if (!g||!gameRef) return;
+      const cur=g.players[g.currentIdx];
+      const updates={'players/'+g.currentIdx+'/timeLeft':Math.max(0,cur.timeLeft)};
+      if (g.mode==='sequence') {
+        const next=findNext(g.players,g.currentIdx);
+        if (next===-1) updates.status='finished';
+        else updates.currentIdx=next;
+      } else {
+        updates.waiting=true;
+      }
+      try { await update(gameRef,updates); } catch(e) { toast('Sync error'); }
+    };
+
+    window.pickNext = async function(playerId) {
+      const g=G.game; if (!g||!g.waiting||!gameRef) return;
+      const idx=g.players.findIndex(p=>p.id===playerId);
+      if (idx===-1||g.players[idx].eliminated) return;
+      try { await update(gameRef,{currentIdx:idx,waiting:false}); } catch(e) { toast('Sync error'); }
+    };
+
+    window.togglePause = async function() {
+      G.paused=!G.paused;
+      if (G.paused) G.lastTick=null; else G.lastTick=Date.now();
+      const btn=document.getElementById('pizzaBtn');
+      const banner=document.getElementById('pausedBanner');
+      btn.classList.toggle('paused',G.paused);
+      banner.classList.toggle('show',G.paused);
+      document.getElementById('endBtn').disabled=G.paused;
+      if (gameRef) { try { await update(gameRef,{paused:G.paused}); } catch(e){} }
+      toast(G.paused?'🍕 Paused — enjoy the pizza!':'▶ Game resumed!');
+    };
+
+    window.elimPlayer = async function(id) {
+      const g=G.game;
+      const idx=g.players.findIndex(p=>p.id===id); if(idx===-1)return;
+      const active=g.players.filter(p=>!p.eliminated);
+      if(active.length<=2){toast('Need at least 2 active players');return;}
+      const name=g.players[idx].name;
+      const fakePlayers=g.players.map((p,i)=>i===idx?{...p,eliminated:true}:p);
+      const updates={'players/'+idx+'/eliminated':true};
+      if(g.currentIdx===idx){
+        const next=findNext(fakePlayers,idx);
+        if(next===-1) updates.status='finished';
+        else { updates.currentIdx=next; updates.waiting=false; }
+      }
+      try { await update(gameRef,updates); toast(name+' removed'); } catch(e){toast('Sync error');}
+    };
+
+    function subscribeGame(code) {
+      if (unsubscribe) unsubscribe();
+      gameRef=ref(db,'games/'+code);
+      unsubscribe=onValue(gameRef,snap=>{
+        if(!snap.exists())return;
+        const data=snap.val();
+        const wasPaused=G.paused;
+        G.game=data;
+        G.paused=data.paused||false;
+        if(!wasPaused&&G.paused) G.lastTick=null;
+        else if(wasPaused&&!G.paused) G.lastTick=Date.now();
+        if(data.status==='lobby'){renderLobby();showScreen('lobbyScreen');}
+        else if(data.status==='playing'){
+          if(!G.tick)startTick();
+          renderGame();showScreen('gameScreen');
+        } else if(data.status==='finished'){endGame();}
+      });
+    }
+
+    console.log('✅ Firebase connected!');
+    setTimeout(()=>toast('✅ Multi-device sync active!'),500);
+  } catch(e) {
+    console.error(e);
+    toast('⚠️ Firebase config error — single-device mode');
+  }
+}
+</script>
+</body>
+</html>
