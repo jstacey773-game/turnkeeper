@@ -517,7 +517,10 @@ showScreen('homeScreen');
   The app works in single-device mode without this.
 ============================================================ -->
 <script type="module">
-// ▼▼▼ PASTE YOUR FIREBASE CONFIG HERE — replace these 9 lines ▼▼▼
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref, set, get, update, onValue }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
 const firebaseConfig = {
   apiKey: "AIzaSyA3e59DKl2PGtWZh4XaFWdTI51jadolI7o",
   authDomain: "turnkeeper-1d907.firebaseapp.com",
@@ -525,18 +528,10 @@ const firebaseConfig = {
   projectId: "turnkeeper-1d907",
   storageBucket: "turnkeeper-1d907.firebasestorage.app",
   messagingSenderId: "50636821960",
-  appId: "1:50636821960:web:7a1c2860fbb80fad589cfd",
-  measurementId: "G-WPRT8WL446"
+  appId: "1:50636821960:web:7a1c2860fbb80fad589cfd"
 };
-// ▲▲▲ END OF PASTE ZONE ▲▲▲
 
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getDatabase, ref, set, get, update, onValue }
-  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
-
-if (firebaseConfig.apiKey.startsWith('PASTE_')) {
-  console.log('Firebase not configured — single-device mode.');
-} else {
+{
   try {
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
