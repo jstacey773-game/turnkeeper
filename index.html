@@ -510,155 +510,154 @@ renderSetup();
 showScreen('homeScreen');
 </script>
 
-<!-- ============================================================
-  FIREBASE MULTI-DEVICE SYNC — OPTIONAL
-  Replace the placeholder firebaseConfig below with yours from
-  the Firebase console (Project Settings > Your Apps > Config).
-  The app works in single-device mode without this.
-============================================================ -->
-<script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getDatabase, ref, set, get, update, onValue }
-  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+(function() {
+  var firebaseConfig = {
+    apiKey: "AIzaSyA3e59DKl2PGtWZh4XaFWdTI51jadolI7o",
+    authDomain: "turnkeeper-1d907.firebaseapp.com",
+    databaseURL: "https://turnkeeper-1d907-default-rtdb.firebaseio.com",
+    projectId: "turnkeeper-1d907",
+    storageBucket: "turnkeeper-1d907.firebasestorage.app",
+    messagingSenderId: "50636821960",
+    appId: "1:50636821960:web:7a1c2860fbb80fad589cfd"
+  };
 
-const firebaseConfig = {
-  apiKey: "AIzaSyA3e59DKl2PGtWZh4XaFWdTI51jadolI7o",
-  authDomain: "turnkeeper-1d907.firebaseapp.com",
-  databaseURL: "https://turnkeeper-1d907-default-rtdb.firebaseio.com",
-  projectId: "turnkeeper-1d907",
-  storageBucket: "turnkeeper-1d907.firebasestorage.app",
-  messagingSenderId: "50636821960",
-  appId: "1:50636821960:web:7a1c2860fbb80fad589cfd"
-};
-
-{
   try {
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    let gameRef = null;
-    let unsubscribe = null;
+    firebase.initializeApp(firebaseConfig);
+    var db = firebase.database();
+    var gameRef = null;
+    var unsubscribe = null;
 
-    window.createGame = async function() {
+    window.createGame = function() {
       document.getElementById('createErr').textContent = '';
-      const inputs = document.querySelectorAll('#playerList input');
-      const names = Array.from(inputs).map((inp,i) => inp.value.trim()||'Player '+(i+1));
+      var inputs = document.querySelectorAll('#playerList input');
+      var names = Array.from(inputs).map(function(inp, i) { return inp.value.trim() || 'Player ' + (i+1); });
       if (names.length < 2) { document.getElementById('createErr').textContent = 'Need at least 2 players'; return; }
-      const ms = G.selTime * 60 * 1000;
-      const code = Math.random().toString(36).slice(2,6).toUpperCase();
-      const players = names.map((name,i) => ({id:'p'+i,name,color:COLORS[i%8],timeLeft:ms,eliminated:false}));
-      const gameData = {code,status:'lobby',currentIdx:0,mode:G.selMode,waiting:false,players,created:Date.now()};
-      gameRef = ref(db,'games/'+code);
-      try {
-        await set(gameRef, gameData);
+      var ms = G.selTime * 60 * 1000;
+      var code = Math.random().toString(36).slice(2,6).toUpperCase();
+      var players = names.map(function(name, i) {
+        return {id:'p'+i, name:name, color:COLORS[i%8], timeLeft:ms, eliminated:false};
+      });
+      var gameData = {code:code, status:'lobby', currentIdx:0, mode:G.selMode, waiting:false, players:players, created:Date.now()};
+      gameRef = db.ref('games/' + code);
+      gameRef.set(gameData).then(function() {
         G.game = gameData; G.isHost = true;
         subscribeGame(code);
         document.getElementById('lobbyCode').textContent = code;
         renderLobby(); showScreen('lobbyScreen');
-      } catch(e) { document.getElementById('createErr').textContent = 'Firebase error — check your config'; }
+      }).catch(function(e) {
+        document.getElementById('createErr').textContent = 'Firebase error: ' + e.message;
+      });
     };
 
-    window.joinGame = async function() {
-      const code = document.getElementById('joinCode').value.trim().toUpperCase();
-      const name = document.getElementById('joinName').value.trim();
-      const err = document.getElementById('joinErr');
-      if (!code||code.length!==4) { err.textContent='Enter a 4-letter code'; return; }
-      if (!name) { err.textContent='Enter your name'; return; }
-      err.textContent='Connecting...';
-      try {
-        const snap = await get(ref(db,'games/'+code));
-        if (!snap.exists()) { err.textContent='Room not found'; return; }
-        const data = snap.val();
-        if (data.status==='finished') { err.textContent='That game has ended'; return; }
-        const player = data.players.find(p=>p.name.toLowerCase()===name.toLowerCase());
-        if (!player) { err.textContent=`No player named "${name}" in this game`; return; }
-        err.textContent='';
-        G.game=data; G.myPlayerId=player.id; G.isHost=false;
-        gameRef=ref(db,'games/'+code);
+    window.joinGame = function() {
+      var code = document.getElementById('joinCode').value.trim().toUpperCase();
+      var name = document.getElementById('joinName').value.trim();
+      var err = document.getElementById('joinErr');
+      if (!code || code.length !== 4) { err.textContent = 'Enter a 4-letter code'; return; }
+      if (!name) { err.textContent = 'Enter your name'; return; }
+      err.textContent = 'Connecting...';
+      db.ref('games/' + code).once('value').then(function(snap) {
+        if (!snap.exists()) { err.textContent = 'Room not found'; return; }
+        var data = snap.val();
+        if (data.status === 'finished') { err.textContent = 'That game has ended'; return; }
+        var player = data.players.find(function(p) { return p.name.toLowerCase() === name.toLowerCase(); });
+        if (!player) { err.textContent = 'No player named "' + name + '" in this game'; return; }
+        err.textContent = '';
+        G.game = data; G.myPlayerId = player.id; G.isHost = false;
+        gameRef = db.ref('games/' + code);
         subscribeGame(code); showScreen('gameScreen'); renderGame();
-      } catch(e) { err.textContent='Connection failed'; }
+      }).catch(function(e) { err.textContent = 'Connection failed: ' + e.message; });
     };
 
-    window.startGame = async function() {
-      if (!G.game||!G.isHost) return;
-      try { await update(gameRef,{status:'playing',currentIdx:0,waiting:false}); } catch(e) { toast('Error'); }
+    window.startGame = function() {
+      if (!G.game || !G.isHost) return;
+      gameRef.update({status:'playing', currentIdx:0, waiting:false});
     };
 
-    window.endTurn = async function() {
+    window.endTurn = function() {
       if (G.paused) return;
-      const g=G.game; if (!g||!gameRef) return;
-      const cur=g.players[g.currentIdx];
-      const updates={'players/'+g.currentIdx+'/timeLeft':Math.max(0,cur.timeLeft)};
-      if (g.mode==='sequence') {
-        const next=findNext(g.players,g.currentIdx);
-        if (next===-1) updates.status='finished';
-        else updates.currentIdx=next;
+      var g = G.game; if (!g || !gameRef) return;
+      var cur = g.players[g.currentIdx];
+      var updates = {};
+      updates['players/' + g.currentIdx + '/timeLeft'] = Math.max(0, cur.timeLeft);
+      if (g.mode === 'sequence') {
+        var next = findNext(g.players, g.currentIdx);
+        if (next === -1) updates.status = 'finished';
+        else updates.currentIdx = next;
       } else {
-        updates.waiting=true;
+        updates.waiting = true;
       }
-      try { await update(gameRef,updates); } catch(e) { toast('Sync error'); }
+      gameRef.update(updates);
     };
 
-    window.pickNext = async function(playerId) {
-      const g=G.game; if (!g||!g.waiting||!gameRef) return;
-      const idx=g.players.findIndex(p=>p.id===playerId);
-      if (idx===-1||g.players[idx].eliminated) return;
-      try { await update(gameRef,{currentIdx:idx,waiting:false}); } catch(e) { toast('Sync error'); }
+    window.pickNext = function(playerId) {
+      var g = G.game; if (!g || !g.waiting || !gameRef) return;
+      var idx = g.players.findIndex(function(p) { return p.id === playerId; });
+      if (idx === -1 || g.players[idx].eliminated) return;
+      gameRef.update({currentIdx:idx, waiting:false});
     };
 
-    window.togglePause = async function() {
-      G.paused=!G.paused;
-      if (G.paused) G.lastTick=null; else G.lastTick=Date.now();
-      const btn=document.getElementById('pizzaBtn');
-      const banner=document.getElementById('pausedBanner');
-      btn.classList.toggle('paused',G.paused);
-      banner.classList.toggle('show',G.paused);
-      document.getElementById('endBtn').disabled=G.paused;
-      if (gameRef) { try { await update(gameRef,{paused:G.paused}); } catch(e){} }
-      toast(G.paused?'🍕 Paused — enjoy the pizza!':'▶ Game resumed!');
+    window.togglePause = function() {
+      G.paused = !G.paused;
+      if (G.paused) G.lastTick = null; else G.lastTick = Date.now();
+      var btn = document.getElementById('pizzaBtn');
+      var banner = document.getElementById('pausedBanner');
+      btn.classList.toggle('paused', G.paused);
+      banner.classList.toggle('show', G.paused);
+      document.getElementById('endBtn').disabled = G.paused;
+      if (gameRef) gameRef.update({paused: G.paused});
+      toast(G.paused ? '🍕 Paused — enjoy the pizza!' : '▶ Game resumed!');
     };
 
-    window.elimPlayer = async function(id) {
-      const g=G.game;
-      const idx=g.players.findIndex(p=>p.id===id); if(idx===-1)return;
-      const active=g.players.filter(p=>!p.eliminated);
-      if(active.length<=2){toast('Need at least 2 active players');return;}
-      const name=g.players[idx].name;
-      const fakePlayers=g.players.map((p,i)=>i===idx?{...p,eliminated:true}:p);
-      const updates={'players/'+idx+'/eliminated':true};
-      if(g.currentIdx===idx){
-        const next=findNext(fakePlayers,idx);
-        if(next===-1) updates.status='finished';
-        else { updates.currentIdx=next; updates.waiting=false; }
+    window.elimPlayer = function(id) {
+      var g = G.game;
+      var idx = g.players.findIndex(function(p) { return p.id === id; });
+      if (idx === -1) return;
+      var active = g.players.filter(function(p) { return !p.eliminated; });
+      if (active.length <= 2) { toast('Need at least 2 active players'); return; }
+      var name = g.players[idx].name;
+      var fakePlayers = g.players.map(function(p, i) { return i === idx ? Object.assign({}, p, {eliminated:true}) : p; });
+      var updates = {};
+      updates['players/' + idx + '/eliminated'] = true;
+      if (g.currentIdx === idx) {
+        var next = findNext(fakePlayers, idx);
+        if (next === -1) updates.status = 'finished';
+        else { updates.currentIdx = next; updates.waiting = false; }
       }
-      try { await update(gameRef,updates); toast(name+' removed'); } catch(e){toast('Sync error');}
+      gameRef.update(updates).then(function() { toast(name + ' removed'); });
     };
 
     function subscribeGame(code) {
       if (unsubscribe) unsubscribe();
-      gameRef=ref(db,'games/'+code);
-      unsubscribe=onValue(gameRef,snap=>{
-        if(!snap.exists())return;
-        const data=snap.val();
-        const wasPaused=G.paused;
-        G.game=data;
-        G.paused=data.paused||false;
-        if(!wasPaused&&G.paused) G.lastTick=null;
-        else if(wasPaused&&!G.paused) G.lastTick=Date.now();
-        if(data.status==='lobby'){renderLobby();showScreen('lobbyScreen');}
-        else if(data.status==='playing'){
-          if(!G.tick)startTick();
-          renderGame();showScreen('gameScreen');
-        } else if(data.status==='finished'){endGame();}
+      gameRef = db.ref('games/' + code);
+      var handler = gameRef.on('value', function(snap) {
+        if (!snap.exists()) return;
+        var data = snap.val();
+        var wasPaused = G.paused;
+        G.game = data;
+        G.paused = data.paused || false;
+        if (!wasPaused && G.paused) G.lastTick = null;
+        else if (wasPaused && !G.paused) G.lastTick = Date.now();
+        if (data.status === 'lobby') { renderLobby(); showScreen('lobbyScreen'); }
+        else if (data.status === 'playing') {
+          if (!G.tick) startTick();
+          renderGame(); showScreen('gameScreen');
+        } else if (data.status === 'finished') { endGame(); }
       });
+      unsubscribe = function() { gameRef.off('value', handler); };
     }
 
-    console.log('✅ Firebase connected!');
-    setTimeout(()=>toast('✅ Multi-device sync active!'),500);
+    setTimeout(function() { toast('✅ Multi-device sync active!'); }, 800);
+    console.log('Firebase connected OK');
+
   } catch(e) {
-    console.error(e);
-    toast('⚠️ Firebase config error — single-device mode');
+    console.error('Firebase error:', e);
+    toast('⚠️ Firebase error: ' + e.message);
   }
-}
+})();
 </script>
 </body>
 </html>
