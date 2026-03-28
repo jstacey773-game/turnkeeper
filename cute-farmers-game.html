@@ -513,11 +513,10 @@ function handleInput(clientX,clientY){
   hidePicker();
 
   const rect=canvas.getBoundingClientRect();
-  // Convert click from CSS pixels to canvas pixels
-  const scale=canvas.width/rect.width;
-  const px=(clientX-rect.left)*scale - canvas.width/2;
-  const py=(clientY-rect.top)*scale - canvas.height/2;
-  const {q,r}=pixelToHex(px,py,hexSize);
+  const px=(clientX-rect.left) - rect.width/2;
+  const py=(clientY-rect.top) - rect.height/2;
+  const cssHexSize=hexSize*(rect.width/canvas.width);
+  const {q,r}=pixelToHex(px,py,cssHexSize);
   if(!inBoard(q,r)) return;
 
   const unitsHere=getUnitsAt(state,q,r);
