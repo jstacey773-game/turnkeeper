@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Firebase Debug</title>
+<style>body{font-family:system-ui;padding:20px}#log{background:#f3f4f6;padding:12px;border-radius:8px;font-size:.8rem;font-family:monospace;white-space:pre-wrap;min-height:200px}</style>
+</head>
+<body>
+<h2>Firebase Connection Debug</h2>
+<p>Open this on both tabs and check what each one says.</p>
+<div id="log">Starting...\n</div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBmTWP1qMGYxBjNsvly5TnE9Bwc2-vuKYA",
+  authDomain: "cute-farmers-game.firebaseapp.com",
+  databaseURL: "https://cute-farmers-game-default-rtdb.firebaseio.com",
+  projectId: "cute-farmers-game",
+  storageBucket: "cute-farmers-game.firebasestorage.app",
+  messagingSenderId: "1058834161722",
+  appId: "1:1058834161722:web:dd4651a5d63cf586399503"
+};
+
+const log = document.getElementById('log');
+function addLog(msg){ log.textContent += new Date().toLocaleTimeString() + ' — ' + msg + '\n'; }
+
+addLog('Initializing Firebase...');
+let app, db;
+try {
+  app = initializeApp(firebaseConfig);
+  db = getDatabase(app);
+  addLog('Firebase initialized OK');
+} catch(e) {
+  addLog('ERROR initializing: ' + e.message);
+}
+
+addLog('Attempting to write test data...');
+try {
+  await set(ref(db, 'debug/test'), { time: Date.now(), msg: 'hello' });
+  addLog('Write succeeded!');
+} catch(e) {
+  addLog('ERROR writing: ' + e.message);
+}
+
+addLog('Attempting to read test data...');
+try {
+  const snap = await get(ref(db, 'debug/test'));
+  addLog('Read succeeded! Value: ' + JSON.stringify(snap.val()));
+} catch(e) {
+  addLog('ERROR reading: ' + e.message);
+}
+
+addLog('Setting up live listener...');
+onValue(ref(db, 'debug/test'), (snap) => {
+  addLog('Live update received: ' + JSON.stringify(snap.val()));
+});
+addLog('Listener active. Now write from another tab to see if it updates here.');
+</script>
+</body>
+</html>
