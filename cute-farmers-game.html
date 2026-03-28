@@ -498,10 +498,10 @@ function showStackPicker(q,r,units,canvasX,canvasY){
   // position near click
   const wrap=document.getElementById('canvas-wrap');
   const rect=wrap.getBoundingClientRect();
-  const scaleX=canvas.width/rect.width;
-  const px=canvasX/scaleX;
+  const scale=canvas.width/rect.width;
+  const px=canvasX/scale;
   picker.style.left=Math.min(px, rect.width-160)+'px';
-  picker.style.top=(canvasY/scaleX+10)+'px';
+  picker.style.top=(canvasY/scale+10)+'px';
   picker.classList.add('show');
 }
 
@@ -513,11 +513,10 @@ function handleInput(clientX,clientY){
   hidePicker();
 
   const rect=canvas.getBoundingClientRect();
-  const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height;
-  const rawX=(clientX-rect.left)*scaleX;
-  const rawY=(clientY-rect.top)*scaleY;
-  const px=rawX-canvas.width/2;
-  const py=rawY-canvas.height/2;
+  // Convert click from CSS pixels to canvas pixels
+  const scale=canvas.width/rect.width;
+  const px=(clientX-rect.left)*scale - canvas.width/2;
+  const py=(clientY-rect.top)*scale - canvas.height/2;
   const {q,r}=pixelToHex(px,py,hexSize);
   if(!inBoard(q,r)) return;
 
