@@ -513,11 +513,14 @@ function handleInput(clientX,clientY){
   hidePicker();
 
   const rect=canvas.getBoundingClientRect();
-  const px=(clientX-rect.left) - rect.width/2;
-  const py=(clientY-rect.top) - rect.height/2;
+  const cssX=clientX-rect.left;
+  const cssY=clientY-rect.top;
+  const px=cssX - rect.width/2;
+  const py=cssY - rect.height/2;
   const cssHexSize=hexSize*(rect.width/canvas.width);
   const {q,r}=pixelToHex(px,py,cssHexSize);
-  if(!inBoard(q,r)) return;
+  console.log('click hex=('+q+','+r+') validMoves='+validMoves.length+' selectedHex='+JSON.stringify(selectedHex));
+  if(!inBoard(q,r)){console.log('out of board');return;}
 
   const unitsHere=getUnitsAt(state,q,r);
   const myUnits=unitsHere.filter(u=>u.player===myPlayer);
@@ -549,7 +552,7 @@ function handleInput(clientX,clientY){
     } else {
       // stack — show picker
       clearSelection();
-      showStackPicker(q,r,myUnits,rawX,rawY);
+      showStackPicker(q,r,myUnits,cssX,cssY);
     }
     return;
   }
