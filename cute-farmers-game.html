@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Cute! Farmers</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f0ede6;padding:12px}
+h1{font-size:1.4rem;font-weight:700;color:#2d5a27;text-align:center;margin-bottom:4px}
+.sub{text-align:center;color:#888;font-size:.8rem;margin-bottom:16px}
+#lobby{max-width:420px;margin:0 auto}
+.card{background:white;border-radius:12px;border:1px solid #e5e7eb;padding:16px;margin-bottom:12px}
+.card h2{font-size:.8rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+input[type=text]{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-size:1rem;margin-bottom:10px;outline:none}
+input[type=text]:focus{border-color:#2d5a27}
+.btn-row{display:flex;gap:8px}
+.btn{flex:1;padding:10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:.9rem;font-weight:600;background:white;cursor:pointer}
+.btn.p1{border-color:#2563eb;color:#2563eb}
+.btn.p2{border-color:#dc2626;color:#dc2626}
+.hint{font-size:.72rem;color:#9ca3af;margin-top:8px}
+/* Unit picker */
+.unit-picker{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.up-row{display:flex;align-items:center;justify-content:space-between;background:#f9fafb;border-radius:8px;padding:6px 10px}
+.up-label{font-size:.85rem;font-weight:600;color:#374151}
+.up-max{font-size:.7rem;color:#9ca3af}
+.up-ctrl{display:flex;align-items:center;gap:8px}
+.up-ctrl button{width:26px;height:26px;border:1px solid #d1d5db;border-radius:6px;background:white;font-size:1rem;cursor:pointer;font-weight:700;color:#374151;padding:0}
+.up-ctrl span{font-size:.95rem;font-weight:700;color:#111;min-width:16px;text-align:center}
+/* Game area */
+#game{display:none;max-width:680px;margin:0 auto}
+#topbar{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+#status{flex:1;background:white;border-radius:8px;padding:8px 12px;font-size:.85rem;font-weight:600;color:#111;border:1px solid #e5e7eb;text-align:center}
+.sc{background:white;border-radius:8px;padding:6px 10px;font-size:.85rem;font-weight:700;border:1px solid #e5e7eb}
+.sc.p1{color:#2563eb}.sc.p2{color:#dc2626}
+#wrap{position:relative;background:white;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden}
+canvas{display:block;width:100%;height:auto;cursor:pointer;touch-action:none}
+#info{margin-top:6px;background:white;border-radius:8px;padding:8px 12px;font-size:.8rem;color:#6b7280;border:1px solid #e5e7eb;text-align:center}
+#panels{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.panel{background:white;border-radius:12px;border:1px solid #e5e7eb;padding:12px;flex:1;min-width:130px}
+.panel h3{font-size:.72rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.ugrid{display:grid;grid-template-columns:1fr 1fr;gap:2px;font-size:.72rem;color:#6b7280}
+.uk{display:flex;align-items:center;gap:3px}
+.uk b{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#e5e7eb;font-size:.6rem;color:#374151}
+#logwrap{max-height:80px;overflow-y:auto}
+.ll{font-size:.68rem;color:#6b7280;padding:2px 0;border-bottom:.5px solid #f3f4f6}
+#endover{display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center}
+#endover.show{display:flex}
+#endbox{background:white;border-radius:16px;padding:28px 36px;text-align:center;max-width:280px}
+#endbox h2{font-size:1.6rem;font-weight:700;color:#111}
+#endbox p{font-size:.95rem;color:#6b7280;margin-top:6px}
+#endbox button{margin-top:18px;padding:10px 28px;border-radius:8px;background:#2d5a27;color:white;border:none;font-size:.95rem;font-weight:600;cursor:pointer}
+</style>
+</head>
+<body>
+<h1>Cute! Farmers</h1>
+<p class="sub">2-Player Strategy Game</p>
+
+<div id="lobby">
+  <div class="card">
+    <h2>Room Code</h2>
+    <input type="text" id="roomcode" placeholder="Enter room code (e.g. farm42)" autocomplete="off">
+    <p class="hint">Both players enter the same room code.</p>
+  </div>
+
+  <div class="card">
+    <h2>Choose Your Units <span style="font-weight:400;color:#9ca3af">(Player 1 sets, Player 2 matches)</span></h2>
+    <div class="unit-picker" id="picker">
+      <!-- filled by JS -->
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="btn-row">
+      <button class="btn p1" onclick="join(1)">Join as Player 1 (Blue)</button>
+      <button class="btn p2" onclick="join(2)">Join as Player 2 (Red)</button>
+    </div>
+    <p class="hint">Player 1 creates the game with the chosen units. Player 2 joins and matches automatically.</p>
+  </div>
+</div>
+
+<div id="game">
+  <div id="topbar">
+    <div id="status">-</div>
+    <div class="sc p1">P1: <span id="s1">0</span></div>
+    <div class="sc p2">P2: <span id="s2">0</span></div>
+  </div>
+  <div id="wrap">
+    <canvas id="c"></canvas>
+    <div id="endover">
+      <div id="endbox">
+        <h2 id="endtitle">-</h2>
+        <p id="endsub">-</p>
+        <button onclick="restart()">Play Again</button>
+      </div>
+    </div>
+  </div>
+  <div id="info">Click a unit to select it</div>
+  <div id="panels">
+    <div class="panel">
+      <h3>Units</h3>
+      <div class="ugrid">
+        <div class="uk"><b>F</b>Farmer</div><div class="uk"><b>C</b>Cat</div>
+        <div class="uk"><b>D</b>Dog</div><div class="uk"><b>P</b>Pig</div>
+        <div class="uk"><b>B</b>Bunny</div><div class="uk"><b>N</b>Penguin</div>
+        <div class="uk"><b>X</b>Dragon</div>
+      </div>
+    </div>
+    <div class="panel" style="flex:2">
+      <h3>Log</h3>
+      <div id="logwrap"><div id="log"></div></div>
+    </div>
+    <div class="panel">
+      <h3>Win</h3>
+      <p style="font-size:.7rem;color:#6b7280;line-height:1.5">Capture the enemy Farmer to win instantly!</p>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import{getDatabase,ref,set,onValue}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const FB={apiKey:"AIzaSyBmTWP1qMGYxBjNsvly5TnE9Bwc2-vuKYA",authDomain:"cute-farmers-game.firebaseapp.com",databaseURL:"https://cute-farmers-game-default-rtdb.firebaseio.com",projectId:"cute-farmers-game",storageBucket:"cute-farmers-game.firebasestorage.app",messagingSenderId:"1058834161722",appId:"1:1058834161722:web:dd4651a5d63cf586399503"};
+const db=getDatabase(initializeApp(FB));
+
+// === UNIT PICKER ===
+const UNIT_DEFS=[
+  {type:'cat',    label:'Cat',     max:10, def:2},
+  {type:'dog',    label:'Dog',     max:10, def:2},
+  {type:'pig',    label:'Pig',     max:8,  def:2},
+  {type:'bunny',  label:'Bunny',   max:8,  def:2},
+  {type:'penguin',label:'Penguin', max:6,  def:2},
+  {type:'dragon', label:'Dragon',  max:2,  def:1},
+];
+const counts={};
+UNIT_DEFS.forEach(u=>counts[u.type]=u.def);
+
+function buildPicker(){
+  const el=document.getElementById('picker');
+  el.innerHTML='';
+  UNIT_DEFS.forEach(({type,label,max})=>{
+    const row=document.createElement('div');
+    row.className='up-row';
+    row.innerHTML=`
+      <div><div class="up-label">${label}</div><div class="up-max">max ${max}</div></div>
+      <div class="up-ctrl">
+        <button onclick="adj('${type}',-1)">−</button>
+        <span id="cnt-${type}">${counts[type]}</span>
+        <button onclick="adj('${type}',1)">+</button>
+      </div>`;
+    el.appendChild(row);
+  });
+}
+
+window.adj=function(type,delta){
+  const def=UNIT_DEFS.find(u=>u.type===type);
+  counts[type]=Math.max(0,Math.min(def.max,counts[type]+delta));
+  document.getElementById('cnt-'+type).textContent=counts[type];
+};
+
+// Build picker once DOM is ready
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',buildPicker)}else{buildPicker()}
+
+// === HEX MATH ===
+const R=6;
+const DIRS=[[1,0],[-1,0],[0,1],[0,-1],[1,-1],[-1,1]];
+function h2p(q,r,sz){return{x:sz*1.5*q,y:sz*(Math.sqrt(3)*0.5*q+Math.sqrt(3)*r)}}
+function p2h(x,y,sz){
+  const q=(2/3*x)/sz,r=(-1/3*x+Math.sqrt(3)/3*y)/sz;
+  let rq=Math.round(q),rs=Math.round(-q-r),rr=Math.round(r);
+  const dq=Math.abs(rq-q),ds=Math.abs(rs-(-q-r)),dr=Math.abs(rr-r);
+  if(dq>ds&&dq>dr)rq=-rs-rr; else if(ds>dr)rs=-rq-rr; else rr=-rq-rs;
+  return{q:rq,r:rr};
+}
+function inB(q,r){return Math.abs(q)<=R&&Math.abs(r)<=R&&Math.abs(q+r)<=R}
+function nbrs(q,r){return DIRS.map(([a,b])=>({q:q+a,r:r+b})).filter(h=>inB(h.q,h.r))}
+function hk(q,r){return q+','+r}
+
+// === STATE ===
+let me=0,room='',state=null,selQ=null,selR=null,selN=0,mvs=[],atks=[];
+let dragonPending=null; // {fromQ,fromR,landQ,landR} when dragon has moved and awaiting jump attack
+const LBL={farmer:'F',cat:'C',dog:'D',pig:'P',bunny:'B',penguin:'N',dragon:'X'};
+
+function at(st,q,r){return st.units.filter(u=>u.q===q&&u.r===r)}
+function top(st,q,r){const a=at(st,q,r);return a.length?a[0]:null}
+
+// Starting positions for each unit type — spread out from corner
+function startPositions(player,unitCounts){
+  // P1 starts top-left cluster, P2 bottom-right
+  const sign=player===1?-1:1;
+  const positions=[];
+  let id=0;
+
+  // Farmer always placed first at anchor
+  positions.push({type:'farmer',q:sign*5,r:player===1?2:-2,player,id:'p'+player+'_'+id++});
+
+  // All possible slots in a cluster around the farmer
+  const slots=[];
+  for(let q=-5;q<=5;q++)for(let r=-5;r<=5;r++){
+    if(inB(q,r)&&!(q===5&&r===-2)&&!(q===-5&&r===2)){
+      slots.push({q:sign*Math.abs(q),r:player===1?Math.abs(r):-Math.abs(r)});
+    }
+  }
+  // Sort by distance from corner to pack units tightly
+  const anchor={q:sign*5,r:player===1?1:-1};
+  slots.sort((a,b)=>{
+    const da=Math.abs(a.q-anchor.q)+Math.abs(a.r-anchor.r);
+    const db=Math.abs(b.q-anchor.q)+Math.abs(b.r-anchor.r);
+    return da-db;
+  });
+
+  const used=new Set([hk(sign*5,player===1?2:-2)]);
+  let si=0;
+  UNIT_DEFS.forEach(({type})=>{
+    const n=unitCounts[type]||0;
+    for(let i=0;i<n;i++){
+      while(si<slots.length&&used.has(hk(slots[si].q,slots[si].r)))si++;
+      if(si>=slots.length)break;
+      const s=slots[si++];
+      if(!inB(s.q,s.r))continue;
+      positions.push({type,q:s.q,r:s.r,player,id:'p'+player+'_'+id++});
+      used.add(hk(s.q,s.r));
+    }
+  });
+  return positions;
+}
+
+function mkState(unitCounts){
+  const units=[...startPositions(1,unitCounts),...startPositions(2,unitCounts)];
+  return{units,turn:1,scores:{1:0,2:0},log:[],v:0,unitCounts};
+}
+
+// === MOVEMENT ===
+function straightMoves(q,r,steps,st,type,player,n){
+  const res=[];
+  DIRS.forEach(([dq,dr])=>{
+    for(let s=1;s<=steps;s++){
+      const tq=q+dq*s,tr=r+dr*s;
+      if(!inB(tq,tr))break;
+      const occ=at(st,tq,tr);
+      if(occ.length){
+        if(occ[0].type===type&&occ[0].player===player&&occ.length+n<=3)res.push({q:tq,r:tr});
+        break;
+      }
+      res.push({q:tq,r:tr});
+    }
+  });
+  return res;
+}
+
+function calcMoves(q,r,n,st){
+  const u=top(st,q,r);
+  if(!u)return{mvs:[],atks:[]};
+  const{type:t,player:p}=u;
+  const en=p===1?2:1;
+  const isEn=(a,b)=>{const x=at(st,a,b);return x.length&&x[0].player===en};
+  let moves=[],attacks=[];
+
+  if(t==='farmer'||t==='cat'||t==='dog'){
+    moves=straightMoves(q,r,2,st,t,p,n);
+    nbrs(q,r).forEach(nb=>{if(isEn(nb.q,nb.r))attacks.push({q:nb.q,r:nb.r})});
+  } else if(t==='pig'){
+    moves=straightMoves(q,r,2,st,t,p,n);
+    DIRS.forEach(([dq,dr])=>{
+      const tq=q+dq*2,tr=r+dr*2;
+      if(inB(tq,tr)&&isEn(tq,tr))attacks.push({q:tq,r:tr,jump:true});
+    });
+  } else if(t==='bunny'){
+    moves=straightMoves(q,r,2,st,t,p,n);
+    DIRS.forEach(([dq,dr])=>{
+      [3,4].forEach(d=>{
+        const tq=q+dq*d,tr=r+dr*d;
+        if(inB(tq,tr)&&isEn(tq,tr))attacks.push({q:tq,r:tr,jump:true});
+      });
+    });
+  } else if(t==='penguin'){
+    DIRS.forEach(([dq,dr])=>{
+      let cq=q+dq,cr=r+dr,lastEmpty=null;
+      while(inB(cq,cr)){
+        const occ=at(st,cq,cr);
+        if(occ.length){
+          if(occ[0].player===en) attacks.push({q:cq,r:cr});
+          else if(occ[0].type===t&&occ[0].player===p&&occ.length+n<=3) lastEmpty={q:cq,r:cr};
+          break;
+        }
+        lastEmpty={q:cq,r:cr};cq+=dq;cr+=dr;
+      }
+      if(lastEmpty)moves.push(lastEmpty);
+    });
+  } else if(t==='dragon'){
+    const vis=new Set([hk(q,r)]);
+    const queue=[{q,r,s:0}];
+    while(queue.length){
+      const c=queue.shift();
+      if(c.s>0){
+        const occ=at(st,c.q,c.r);
+        if(!occ.length) moves.push({q:c.q,r:c.r});
+        else if(occ[0].type===t&&occ[0].player===p&&occ.length+n<=3) moves.push({q:c.q,r:c.r});
+      }
+      if(c.s<3)nbrs(c.q,c.r).forEach(nb=>{
+        const k=hk(nb.q,nb.r);
+        if(!vis.has(k)&&!at(st,nb.q,nb.r).length){vis.add(k);queue.push({q:nb.q,r:nb.r,s:c.s+1})}
+      });
+    }
+    // Also allow jump attack from current position (no move)
+    nbrs(q,r).forEach(nb=>{if(isEn(nb.q,nb.r))attacks.push({q:nb.q,r:nb.r,jump:true})});
+  }
+
+  const dd=a=>a.filter((x,i,s)=>s.findIndex(y=>y.q===x.q&&y.r===x.r)===i);
+  return{mvs:dd(moves),atks:dd(attacks)};
+}
+
+// === COMBAT ===
+function combat(atkers,defs,units){
+  const nu=JSON.parse(JSON.stringify(units));
+  const logs=[];
+  let ap=[...atkers],dp=[...defs];
+  const caps=atkers[0]&&atkers[0].jmp?2:1;
+  const cf={1:0,2:0};
+  while(ap.length&&dp.length){
+    const c=Math.min(caps,dp.length);
+    for(let i=0;i<c;i++){
+      const d=dp.shift();
+      if(d.type==='farmer')cf[d.player]++;
+      const idx=nu.findIndex(u=>u.id===d.id);
+      if(idx>=0)nu.splice(idx,1);
+      logs.push(ap[0].type+' captured '+d.type);
+    }
+    if(!dp.length)break;
+    const a=ap.shift();
+    const idx=nu.findIndex(u=>u.id===a.id);
+    if(idx>=0)nu.splice(idx,1);
+    if(dp.length)logs.push(dp[0].type+' captured '+a.type);
+  }
+  return{nu,logs,cf};
+}
+
+function applyMove(st,fq,fr,tq,tr,n,isAtk,isJump){
+  const ns=JSON.parse(JSON.stringify(st));
+  if(!ns.log)ns.log=[];
+  if(!ns.scores)ns.scores={1:0,2:0};
+  const movers=at(ns,fq,fr).slice(0,n);
+  if(!movers.length)return ns;
+  const ep=movers[0].player===1?2:1;
+
+  if(isAtk){
+    const defs=at(ns,tq,tr).filter(u=>u.player===ep);
+    if(isJump)movers.forEach(m=>m.jmp=true);
+    movers.forEach(m=>{m.q=tq;m.r=tr});
+    const{nu,logs,cf}=combat(movers,defs,ns.units);
+    ns.units=nu;
+    logs.forEach(l=>ns.log.unshift(l));
+    // Check if a farmer was captured — immediate win
+    Object.entries(cf).forEach(([p,c])=>{
+      if(c>0){
+        ns.winner=movers[0].player;
+        ns.log.unshift('Player '+movers[0].player+' captured the enemy Farmer! GAME OVER!');
+      }
+    });
+  } else {
+    movers.forEach(m=>{m.q=tq;m.r=tr});
+    ns.log.unshift('P'+movers[0].player+' moved '+n+' '+movers[0].type);
+  }
+
+  ns.turn=ep;
+  ns.v=(ns.v||0)+1;
+  ns.log=ns.log.slice(0,40);
+  return ns;
+}
+
+// === CANVAS ===
+const cv=document.getElementById('c');
+const cx=cv.getContext('2d');
+let SZ=28;
+
+function resize(){
+  const w=document.getElementById('wrap').clientWidth||400;
+  cv.width=w; cv.height=Math.floor(w*1.2);
+  SZ=Math.floor(w/16);
+}
+
+function drawHex(q,r,fill,stroke,lw){
+  const{x,y}=h2p(q,r,SZ);
+  const cx2=cv.width/2+x,cy2=cv.height/2+y;
+  cx.beginPath();
+  for(let i=0;i<6;i++){const a=i*Math.PI/3;cx.lineTo(cx2+SZ*0.93*Math.cos(a),cy2+SZ*0.93*Math.sin(a))}
+  cx.closePath();
+  cx.fillStyle=fill;cx.fill();
+  cx.strokeStyle=stroke;cx.lineWidth=lw||1;cx.stroke();
+}
+
+function drawUnit(q,r,units,sel){
+  const{x,y}=h2p(q,r,SZ);
+  const cx2=cv.width/2+x,cy2=cv.height/2+y;
+  const u=units[0];
+  const col=u.player===1?'#2563eb':'#dc2626';
+  const rad=SZ*0.5;
+  cx.beginPath();cx.arc(cx2,cy2,rad,0,Math.PI*2);
+  cx.fillStyle=sel?'#f59e0b':col;cx.fill();
+  cx.strokeStyle='white';cx.lineWidth=2;cx.stroke();
+  cx.fillStyle='white';
+  cx.font='bold '+Math.floor(SZ*0.42)+'px system-ui';
+  cx.textAlign='center';cx.textBaseline='middle';
+  cx.fillText(LBL[u.type]||'?',cx2,cy2);
+  if(units.length>1){
+    cx.beginPath();cx.arc(cx2+rad*0.6,cy2-rad*0.6,rad*0.35,0,Math.PI*2);
+    cx.fillStyle='#1e3a8a';cx.fill();
+    cx.fillStyle='white';
+    cx.font='bold '+Math.floor(SZ*0.3)+'px system-ui';
+    cx.fillText(units.length,cx2+rad*0.6,cy2-rad*0.6);
+  }
+}
+
+function draw(){
+  if(!state)return;
+  cx.clearRect(0,0,cv.width,cv.height);
+  for(let q=-R;q<=R;q++)for(let r=-R;r<=R;r++){
+    if(!inB(q,r))continue;
+    const isSel=selQ===q&&selR===r;
+    const isM=mvs.some(m=>m.q===q&&m.r===r);
+    const isA=atks.some(a=>a.q===q&&a.r===r);
+    let f='#f5f0e8',s='#d4c9b4',lw=1;
+    if(isSel){f='#fef3c7';s='#f59e0b';lw=2}
+    if(isM){f='#bbf7d0';s='#16a34a';lw=1.5}
+    if(isA){f='#fecaca';s='#dc2626';lw=1.5}
+    drawHex(q,r,f,s,lw);
+  }
+  const map={};
+  state.units.forEach(u=>{const k=hk(u.q,u.r);if(!map[k])map[k]=[];map[k].push(u)});
+  Object.entries(map).forEach(([k,us])=>{
+    const[q,r]=k.split(',').map(Number);
+    drawUnit(q,r,us,selQ===q&&selR===r);
+  });
+}
+
+// === INPUT ===
+function click(ex,ey){
+  if(!state||state.turn!==me||state.winner)return;
+  const rect=cv.getBoundingClientRect();
+  const scale=cv.width/rect.width;
+  const px=(ex-rect.left)*scale-cv.width/2;
+  const py=(ey-rect.top)*scale-cv.height/2;
+  const{q,r}=p2h(px,py,SZ);
+  if(!inB(q,r))return;
+
+  // === DRAGON PENDING ATTACK PHASE ===
+  // Dragon has moved to dragonPending.landQ/R, now choosing whether to jump attack
+  if(dragonPending){
+    const{fromQ,fromR,landQ,landR}=dragonPending;
+    // Clicked a red attack hex — execute the move+attack
+    if(atks.some(a=>a.q===q&&a.r===r)){
+      // Apply move first, then attack from landing spot
+      const moved=applyMove(state,fromQ,fromR,landQ,landR,selN,false,false);
+      // Now apply jump attack from landing spot
+      const en=me===1?2:1;
+      const defs=at(moved,q,r).filter(u=>u.player===en);
+      const moverUnits=at(moved,landQ,landR).slice(0,selN);
+      moverUnits.forEach(m=>m.jmp=true);
+      moverUnits.forEach(m=>{m.q=q;m.r=r});
+      const{nu,logs,cf}=combat(moverUnits,defs,moved.units);
+      moved.units=nu;
+      if(!moved.log)moved.log=[];
+      logs.forEach(l=>moved.log.unshift(l));
+      Object.entries(cf).forEach(([p,c])=>{
+        if(c>0){moved.winner=me;moved.log.unshift('Player '+me+' captured the enemy Farmer! GAME OVER!')}
+      });
+      moved.log=moved.log.slice(0,40);
+      dragonPending=null;
+      push(moved);clr();return;
+    }
+    // Clicked elsewhere — skip attack, commit the move
+    const moved=applyMove(state,fromQ,fromR,landQ,landR,selN,false,false);
+    dragonPending=null;
+    push(moved);clr();return;
+  }
+
+  // === NORMAL MOVE PHASE ===
+  // Moving a selected unit
+  if(selQ!==null&&mvs.some(m=>m.q===q&&m.r===r)){
+    const u=top(state,selQ,selR);
+    if(u&&u.type==='dragon'&&!(selQ===q&&selR===r)){
+      // Dragon: move to destination, then show jump attack options from there
+      // Temporarily update state visually to show dragon at new pos
+      const tempSt=JSON.parse(JSON.stringify(state));
+      const movers=at(tempSt,selQ,selR).slice(0,selN);
+      movers.forEach(m=>{m.q=q;m.r=r});
+      const en=me===1?2:1;
+      const jumpAtks=nbrs(q,r)
+        .filter(nb=>{const x=at(tempSt,nb.q,nb.r);return x.length&&x[0].player===en})
+        .map(nb=>({q:nb.q,r:nb.r,jump:true}));
+      dragonPending={fromQ:selQ,fromR:selR,landQ:q,landR:r};
+      mvs=[];
+      atks=jumpAtks;
+      document.getElementById('info').textContent=jumpAtks.length?'Dragon landed — click red to attack, or click elsewhere to end turn':'Dragon landed — click elsewhere to end turn';
+      // Draw board with dragon at new position
+      const dispSt=JSON.parse(JSON.stringify(state));
+      at(dispSt,selQ,selR).slice(0,selN).forEach(m=>{m.q=q;m.r=r});
+      drawWithState(dispSt);
+      return;
+    }
+    push(applyMove(state,selQ,selR,q,r,selN,false,false));
+    clr();return;
+  }
+
+  // Attacking with selected unit
+  if(selQ!==null&&atks.some(a=>a.q===q&&a.r===r)){
+    const a=atks.find(a=>a.q===q&&a.r===r);
+    push(applyMove(state,selQ,selR,q,r,selN,true,a.jump||false));
+    clr();return;
+  }
+
+  // Selecting own unit
+  const mine=at(state,q,r).filter(u=>u.player===me);
+  if(mine.length){
+    dragonPending=null;
+    if(mine.length===1){
+      // single unit — select directly
+      selQ=q;selR=r;selN=1;
+      const res=calcMoves(q,r,1,state);
+      mvs=res.mvs;atks=res.atks;
+      document.getElementById('info').textContent='1 '+mine[0].type+' — green=move, red=attack';
+      draw();
+    } else {
+      // stack — show inline prompt in info bar with buttons
+      selQ=q;selR=r;selN=mine.length;
+      const type=mine[0].type;
+      const info=document.getElementById('info');
+      info.innerHTML='Move how many <b>'+type+'s</b>? '+
+        Array.from({length:mine.length},(_,i)=>
+          `<button onclick="pickN(${i+1})" style="margin:0 3px;padding:3px 10px;border:1.5px solid #2563eb;border-radius:6px;background:white;color:#2563eb;font-weight:700;cursor:pointer">${i+1}</button>`
+        ).join('');
+      // Show moves for full group by default
+      const res=calcMoves(q,r,mine.length,state);
+      mvs=res.mvs;atks=res.atks;
+      draw();
+    }
+    return;
+  }
+  clr();
+}
+
+window.pickN=function(n){
+  if(selQ===null)return;
+  selN=n;
+  const res=calcMoves(selQ,selR,n,state);
+  mvs=res.mvs;atks=res.atks;
+  const mine=at(state,selQ,selR).filter(u=>u.player===me);
+  document.getElementById('info').textContent=n+' '+mine[0].type+(n>1?'s':'')+' selected — green=move, red=attack';
+  draw();
+};
+
+function drawWithState(st){
+  // Draw board using a custom state (used for dragon preview)
+  cx.clearRect(0,0,cv.width,cv.height);
+  for(let q=-R;q<=R;q++)for(let r=-R;r<=R;r++){
+    if(!inB(q,r))continue;
+    const isA=atks.some(a=>a.q===q&&a.r===r);
+    let f='#f5f0e8',s='#d4c9b4',lw=1;
+    if(isA){f='#fecaca';s='#dc2626';lw=1.5}
+    drawHex(q,r,f,s,lw);
+  }
+  const map={};
+  st.units.forEach(u=>{const k=hk(u.q,u.r);if(!map[k])map[k]=[];map[k].push(u)});
+  Object.entries(map).forEach(([k,us])=>{
+    const[q,r]=k.split(',').map(Number);
+    drawUnit(q,r,us,false);
+  });
+}
+
+function clr(){dragonPending=null;selQ=null;selR=null;selN=0;mvs=[];atks=[];if(state)draw();document.getElementById('info').textContent='Click a unit to select it'}
+
+cv.addEventListener('click',e=>click(e.clientX,e.clientY));
+cv.addEventListener('touchend',e=>{e.preventDefault();const t=e.changedTouches[0];click(t.clientX,t.clientY)},{passive:false});
+window.addEventListener('resize',()=>{resize();draw()});
+
+// === UI ===
+function ui(){
+  if(!state)return;
+  // Check for winner
+  if(state.winner){
+    document.getElementById('endtitle').textContent='Player '+state.winner+' wins!';
+    document.getElementById('endsub').textContent=state.winner===me?'You captured the enemy Farmer!':'Your Farmer was captured.';
+    document.getElementById('endover').classList.add('show');
+  }
+  const myTurn=state.turn===me;
+  document.getElementById('status').textContent=state.winner?'Game Over':myTurn?'Your turn — Player '+me:'Waiting for Player '+state.turn+'…';
+  document.getElementById('s1').textContent=state.scores&&state.scores[1]||0;
+  document.getElementById('s2').textContent=state.scores&&state.scores[2]||0;
+  document.getElementById('log').innerHTML=(state.log||[]).map(l=>'<div class="ll">'+l+'</div>').join('');
+  draw();
+}
+
+// === FIREBASE ===
+function push(ns){state=ns;ui();set(ref(db,'games/'+room),ns)}
+
+window.restart=function(){
+  document.getElementById('endover').classList.remove('show');
+  clr();
+  const uc=state&&state.unitCounts||counts;
+  push(mkState(uc));
+};
+
+window.join=function(player){
+  const code=document.getElementById('roomcode').value.trim();
+  if(!code){alert('Enter a room code');return}
+  room=code;me=player;
+  document.getElementById('lobby').style.display='none';
+  document.getElementById('game').style.display='block';
+  setTimeout(()=>{
+    resize();
+    onValue(ref(db,'games/'+room),snap=>{
+      const d=snap.val();
+      if(!d){document.getElementById('status').textContent='Waiting for Player 1…';return}
+      if(!state||d.v>state.v){state=d;clr();ui()}
+    });
+    if(player===1)push(mkState(counts));
+  },60);
+};
+</script>
+</body>
+</html>
