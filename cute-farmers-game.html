@@ -190,12 +190,14 @@ function calcMoves(q,r,n,st){
     });
   } else if(t==='penguin'){
     DIRS.forEach(([dq,dr])=>{
-      let cq=q+dq,cr=r+dr;
+      let cq=q+dq,cr=r+dr,lastEmpty=null;
       while(inB(cq,cr)){
         const occ=at(st,cq,cr);
         if(occ.length){if(occ[0].player===en)attacks.push({q:cq,r:cr});break}
-        moves.push({q:cq,r:cr});cq+=dq;cr+=dr;
+        lastEmpty={q:cq,r:cr};
+        cq+=dq;cr+=dr;
       }
+      if(lastEmpty)moves.push(lastEmpty);
     });
   } else if(t==='dragon'){
     const vis=new Set([hk(q,r)]);
